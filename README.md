@@ -141,7 +141,7 @@ curl "http://OUTPUT_URL:4566/Prod/search?domain=example.com" \
 
 ### 1. Application Build
 
-# With SAM
+#### SAM
 ```bash
 sam build
 ```
