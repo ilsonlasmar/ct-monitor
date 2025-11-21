@@ -3,9 +3,18 @@
 <img width="864" height="388" alt="Screenshot 2025-11-20 at 22 22 30" src="https://github.com/user-attachments/assets/d10ca6ee-c565-429c-9b45-ae28ec54fb51" />
 
 
+CT-Monitor is a serverless system for monitoring Certificate Transparency logs, developed in Go and deployed on AWS using AWS SAM (Serverless Application Model). The system consists of two main Lambda functions: Producer and Consumer, which work together to process and store information about SSL certificates.
 
+## Architecture
 
-This is a sample template for ct-monitor - Below is a brief explanation of what we have generated for you:
+The project uses a serverless architecture with the following components:
+
+- **Producer Function**: Lambda function that exposes a REST API to search domains in Certificate Transparency logs
+- **Consumer Function**: Lambda function that processes messages from an SQS queue and stores data in DynamoDB
+- **DynamoDB**: NoSQL database to store certificate logs
+- **SQS**: Message queue for asynchronous communication between functions
+- **API Gateway**: Gateway to expose the Producer REST API
+- **Secrets Manager**: Secure management of secrets and configurations
 
 ```bash
 .
