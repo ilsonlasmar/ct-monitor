@@ -3,24 +3,21 @@
 <img width="864" height="388" alt="Screenshot 2025-11-20 at 22 22 30" src="https://github.com/user-attachments/assets/d10ca6ee-c565-429c-9b45-ae28ec54fb51" />
 
 
-
-
-
 This is a sample template for ct-monitor - Below is a brief explanation of what we have generated for you:
 
 ```bash
 .
 ├── cmd/
 │   └── functions/
-│       ├── consumer/          # Função Lambda Consumer
-│       └── producer/          # Função Lambda Producer
+│       ├── consumer/          # Lambda Consumer Function
+│       └── producer/          # Lambda Producer Function
 ├── internal/
-│   └── service/               # Lógica de negócio
+│   └── service/               # Business logic
 │       ├── findDomain.go
 │       ├── processor.go
 │       ├── secrets.go
 │       └── sqs.go
-├── pkg/                       # Pacotes reutilizáveis
+├── pkg/                       # Reusable packages
 │   ├── awsdb/
 │   ├── certspotter/
 │   ├── crtsh/
@@ -30,9 +27,9 @@ This is a sample template for ct-monitor - Below is a brief explanation of what 
 │   ├── request/
 │   └── utils/
 ├── events/
-│   └── event.json            # Eventos de teste
-├── template.yaml             # Template SAM
-├── samconfig.toml           # Configuração do SAM
+│   └── event.json            # Test events
+├── template.yaml             # SAM Template
+├── samconfig.toml           # SAM Configuration
 ├── go.mod
 ├── go.sum
 └── Makefile
@@ -42,7 +39,7 @@ This is a sample template for ct-monitor - Below is a brief explanation of what 
 ## Requirements
 
 ### Production
-- [AWS CLI](https://aws.amazon.com/cli/) configurado com permissões de administrador
+- [AWS CLI](https://aws.amazon.com/cli/) configured with administrator permissions
 - [SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html)
 - [Docker](https://www.docker.com/community-edition)
 - [Go 1.23+](https://golang.org)
@@ -52,9 +49,9 @@ This is a sample template for ct-monitor - Below is a brief explanation of what 
 - [awslocal CLI](https://github.com/localstack/awscli-local)
 - [samlocal](https://github.com/localstack/aws-sam-cli-local)
 
-## Instalação
+## Installation
 
-### Instalação do SAM CLI
+### SAM CLI Installation
 ```bash
 # macOS
 brew install aws-sam-cli
@@ -62,49 +59,49 @@ brew install aws-sam-cli
 # Windows
 choco install aws-sam-cli
 
-# Linux - siga as instruções em:
+# Linux - follow instructions at:
 # https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html
 ```
 
-### Instalação das Dependências do Projeto
+### Project Dependencies Installation
 
 ```bash
-# Clone o repositório
+# Clone the repository
 git clone <repository-url>
 cd ct-monitor
 
-# Instale as dependências Go
+# Install Go dependencies
 go mod tidy
 ```
 
-## Desenvolvimento Local
+## Local Development
 
-### Usando LocalStack
+### Using LocalStack
 
-#### 1. Instalação do LocalStack e Ferramentas
+#### 1. LocalStack and Tools Installation
 
 ```bash
-# Instalar LocalStack
+# Install LocalStack
 pip install localstack
 
-# Instalar awslocal
+# Install awslocal
 pip install awscli-local
 
-# Instalar samlocal
+# Install samlocal
 pip install aws-sam-cli-local
 ```
 
-#### 2. Iniciando o LocalStack
+#### 2. Starting LocalStack
 
 ```bash
-# Iniciar LocalStack com os serviços necessários
+# Start LocalStack with required services
 localstack start -d
 ```
 
-#### 3. Configuração Local
+#### 3. Local Configuration
 
 ```bash
-# Configurar perfil AWS local
+# Configure local AWS profile
 awslocal configure
 # AWS Access Key ID: test
 # AWS Secret Access Key: test
@@ -112,82 +109,82 @@ awslocal configure
 # Default output format: json
 ```
 
-#### 4. Deploy Local usando samlocal
+#### 4. Local Deploy using samlocal
 
 ```bash
-# Build do projeto
+# Build the project
 samlocal build
 
-# Deploy local
+# Local deploy
 samlocal deploy --guided
 ```
 
-#### 5. Testando Localmente
+#### 5. Local Testing
 
 ```bash
-# Listar stacks
+# List stacks
 awslocal cloudformation list-stacks
 
-# Verificar recursos criados
+# Check created resources
 awslocal dynamodb list-tables
 awslocal sqs list-queues
 awslocal apigateway get-rest-apis
 
-# Testar API local
+# Test local API
 curl "http://OUTPUT_URL:4566/Prod/search?domain=example.com" \
   -H "x-api-key: test-key"
 ```
 
-## Deploy em Produção
+## Production Deploy
 
-### 1. Build da Aplicação
+### 1. Application Build
 
-# Com SAM
+# With SAM
 ```bash
 sam build
 ```
 
-### 2. Deploy Inicial
+### 2. Initial Deploy
 
-Para o primeiro deploy, use o comando guiado:
+For the first deploy, use the guided command:
 
 ```bash
 sam deploy --guided
 ```
 
-### 3. Deploys Subsequentes
+### 3. Subsequent Deploys
 
-Após a configuração inicial, você pode fazer deploy simplesmente com:
+After initial configuration, you can simply deploy with:
 
 ```bash
 sam deploy
 ```
 
-### 4. Monitoramento da Stack
+### 4. Stack Monitoring
 
 ```bash
-# Verificar status da stack
+# Check stack status
 aws cloudformation describe-stacks --stack-name ct-monitor
 
-# Ver logs das funções Lambda
+# View Lambda function logs
 sam logs -n ProducerFunction --stack-name ct-monitor --tail
 sam logs -n ConsumerFunction --stack-name ct-monitor --tail
 ```
-## Configuração
+## Configuration
 
-### Variáveis de Ambiente
+### Environment Variables
 
-O projeto utiliza as seguintes variáveis de ambiente configuradas no [template.yaml](template.yaml):
+The project uses the following environment variables configured in [template.yaml](template.yaml):
 
-- `SECRET_NAME`: Nome do secret no Secrets Manager contendo a URL da fila SQS
+- `SECRET_NAME`: Name of the secret in Secrets Manager containing the SQS queue URL
 
-### Parâmetros Configuráveis
+### Configurable Parameters
 
-No arquivo [samconfig.toml](samconfig.toml), você pode ajustar:
+In the [samconfig.toml](samconfig.toml) file, you can adjust:
 
-- `region`: Região AWS para deploy
-- `stack_name`: Nome da stack CloudFormation
-- `s3_prefix`: Prefixo para objetos S3
+- `region`: AWS region for deployment
+- `stack_name`: CloudFormation stack name
+- `s3_prefix`: Prefix for S3 objects
 
 ## API Reference
 
@@ -195,45 +192,44 @@ No arquivo [samconfig.toml](samconfig.toml), você pode ajustar:
 
 **Endpoint**: `GET /search`
 
-**Parâmetros**:
-- `domain` (query parameter): Domínio a ser pesquisado nos CT logs
+**Parameters**:
+- `domain` (query parameter): Domain to be searched in CT logs
 
 **Headers**:
-- `x-api-key`: API Key requerida (obtida após deploy)
+- `x-api-key`: Required API Key (obtained after deploy)
 
-**Exemplo**:
+**Example**:
 ```bash
 curl -X GET "https://{api-id}.execute-api.{region}.amazonaws.com/Prod/search?domain=example.com" \
   -H "x-api-key: {your-api-key}"
 ```
 
-## Testes
+## Tests
 
-### Testes Unitários
+### Unit Tests
 
 ```bash
-# Executar todos os testes
+# Run all tests
 go test ./...
 
-# Executar testes com verbosidade
+# Run tests with verbosity
 go test -v ./...
 
-# Executar testes de um pacote específico
+# Run tests for a specific package
 go test -v ./pkg/certspotter/
 ```
 
-### Teste Local das Funções
+### Local Function Testing
 
 ```bash
-# Testar função Producer localmente
+# Test Producer function locally
+sam local invoke ProducerFunction --event events/event.json
 
-am local invoke ProducerFunction --event events/event.json
-
-# Testar função Consumer localmente
+# Test Consumer function locally
 sam local invoke ConsumerFunction --event events/sqs-event.json
 ```
 
-## Links Úteis
+## Useful Links
 
 - [AWS SAM Documentation](https://docs.aws.amazon.com/serverless-application-model/)
 - [LocalStack Documentation](https://docs.localstack.cloud/)
