@@ -1,0 +1,160 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Globals:
+  Function:
+    Timeout: 3
+    MemorySize: 128
+
+Resources:
+  DomainQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: monitor-domain-queue
+
+  QueueUrlSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: QueueUrlSecret
+      Description: Queue URL SQS
+      SecretString: !Sub |
+        {
+          "QUEUE_URL": "${DomainQueue}"
+        }
+
+  ApiKey:
+    Type: AWS::ApiGateway::ApiKey
+    Properties:
+      Name: CtMonitorApiKey
+      Description: API Key
+      Enabled: true
+      Value: !Sub
+        - "${Hash}"
+        - Hash: !Select [2, !Split ["/", !Ref "AWS::StackId"]]
+
+  ApiKeySecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: CtMonitorApiKey
+      Description: API Key Save In SecretManager
+      SecretString: !Sub
+        - |
+          {
+            "API_KEY": "${Hash}"
+          }
+        - Hash: !Select [2, !Split ["/", !Ref "AWS::StackId"]]
+
+  # Usage Plan
+  UsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    Properties:
+      UsagePlanName: CtMonitorUsagePlan
+      Description: Usage plan for CT Monitor API
+      Throttle:
+        BurstLimit: 100
+        RateLimit: 50
+      Quota:
+        Limit: 10000
+        Period: DAY
+      ApiStages:
+        - ApiId: !Ref ServerlessRestApi
+          Stage: !Ref ServerlessRestApiProdStage
+
+  # Link API Key to Usage Plan
+  UsagePlanKey:
+    Type: AWS::ApiGateway::UsagePlanKey
+    Properties:
+      KeyId: !Ref ApiKey
+      KeyType: API_KEY
+      UsagePlanId: !Ref UsagePlan
+
+  CtLogsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ct-logs
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+      - AttributeName: pk
+        KeyType: HASH
+      - AttributeName: sk
+        KeyType: RANGE
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+
+  ProducerFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      CodeUri: ./cmd/functions/producer/
+      Handler: bootstrap
+      Runtime: provided.al2023
+      Architectures:
+        - x86_64
+      Events:
+        CatchAll:
+          Type: Api
+          Properties:
+            Path: /search
+            Method: GET
+            Auth:
+              ApiKeyRequired: true
+      Environment:
+        Variables:
+          SECRET_NAME: !Ref QueueUrlSecret
+      Policies:
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt DomainQueue.QueueName
+        - SecretsManagerReadWrite
+        - AmazonDynamoDBFullAccess
+
+  DomainQueuePolicy:
+    Type: "AWS::SQS::QueuePolicy"
+    Properties:
+      Queues:
+        - !Ref DomainQueue
+      PolicyDocument:
+        Statement:
+          - Effect: "Allow"
+            Principal: "*"
+            Action:
+              - sqs:SendMessage
+            Resource:
+              - !GetAtt DomainQueue.Arn
+            Condition:
+              ArnEquals:
+                "aws:SourceArn": !GetAtt ProducerFunction.Arn
+
+
+  ConsumerFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      CodeUri: ./cmd/functions/consumer/
+      Policies: AmazonDynamoDBFullAccess
+      Handler: bootstrap
+      Runtime: provided.al2023
+      Timeout: 30
+      Architectures:
+        - x86_64
+      Events:
+        SqsEvents:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt DomainQueue.Arn
+
+Outputs:
+  ApiUrl:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/"
+  ApiKeySecretName:
+      Description: "Name of the secret containing the API Key"
+      Value: !Sub
+        - "${Hash}"
+        - Hash: !Select [2, !Split ["/", !Ref "AWS::StackId"]]
