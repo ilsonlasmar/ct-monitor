@@ -50,110 +50,190 @@ This is a sample template for ct-monitor - Below is a brief explanation of what 
 - [awslocal CLI](https://github.com/localstack/awscli-local)
 - [samlocal](https://github.com/localstack/aws-sam-cli-local)
 
-### Local development
+## Instalação
 
-**Invoking function locally through local API Gateway**
+### Instalação do SAM CLI
+```bash
+# macOS
+brew install aws-sam-cli
+
+# Windows
+choco install aws-sam-cli
+
+# Linux - siga as instruções em:
+# https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html
+```
+
+### Instalação das Dependências do Projeto
 
 ```bash
-sam local start-api
+# Clone o repositório
+git clone <repository-url>
+cd ct-monitor
+
+# Instale as dependências Go
+go mod tidy
 ```
 
-If the previous command ran successfully you should now be able to hit the following local endpoint to invoke your function `http://localhost:3000/hello`
+## Desenvolvimento Local
 
-**SAM CLI** is used to emulate both Lambda and API Gateway locally and uses our `template.yaml` to understand how to bootstrap this environment (runtime, where the source code is, etc.) - The following excerpt is what the CLI will read in order to initialize an API and its routes:
+### Usando LocalStack
 
-```yaml
-...
-Events:
-    HelloWorld:
-        Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
-        Properties:
-            Path: /hello
-            Method: get
+#### 1. Instalação do LocalStack e Ferramentas
+
+```bash
+# Instalar LocalStack
+pip install localstack
+
+# Instalar awslocal
+pip install awscli-local
+
+# Instalar samlocal
+pip install aws-sam-cli-local
 ```
 
-## Packaging and deployment
+#### 2. Iniciando o LocalStack
 
-AWS Lambda Golang runtime requires a flat folder with the executable generated on build step. SAM will use `CodeUri` property to know where to look up for the application:
-
-```yaml
-...
-    FirstFunction:
-        Type: AWS::Serverless::Function
-        Properties:
-            CodeUri: hello_world/
-            ...
+```bash
+# Iniciar LocalStack com os serviços necessários
+localstack start -d
 ```
 
-To deploy your application for the first time, run the following in your shell:
+#### 3. Configuração Local
+
+```bash
+# Configurar perfil AWS local
+awslocal configure
+# AWS Access Key ID: test
+# AWS Secret Access Key: test
+# Default region name: us-east-1
+# Default output format: json
+```
+
+#### 4. Deploy Local usando samlocal
+
+```bash
+# Build do projeto
+samlocal build
+
+# Deploy local
+samlocal deploy --guided
+```
+
+#### 5. Testando Localmente
+
+```bash
+# Listar stacks
+awslocal cloudformation list-stacks
+
+# Verificar recursos criados
+awslocal dynamodb list-tables
+awslocal sqs list-queues
+awslocal apigateway get-rest-apis
+
+# Testar API local
+curl "http://OUTPUT_URL:4566/Prod/search?domain=example.com" \
+  -H "x-api-key: test-key"
+```
+
+## Deploy em Produção
+
+### 1. Build da Aplicação
+
+# Com SAM
+```bash
+sam build
+```
+
+### 2. Deploy Inicial
+
+Para o primeiro deploy, use o comando guiado:
 
 ```bash
 sam deploy --guided
 ```
 
-The command will package and deploy your application to AWS, with a series of prompts:
+### 3. Deploys Subsequentes
 
-* **Stack Name**: The name of the stack to deploy to CloudFormation. This should be unique to your account and region, and a good starting point would be something matching your project name.
-* **AWS Region**: The AWS region you want to deploy your app to.
-* **Confirm changes before deploy**: If set to yes, any change sets will be shown to you before execution for manual review. If set to no, the AWS SAM CLI will automatically deploy application changes.
-* **Allow SAM CLI IAM role creation**: Many AWS SAM templates, including this example, create AWS IAM roles required for the AWS Lambda function(s) included to access AWS services. By default, these are scoped down to minimum required permissions. To deploy an AWS CloudFormation stack which creates or modifies IAM roles, the `CAPABILITY_IAM` value for `capabilities` must be provided. If permission isn't provided through this prompt, to deploy this example you must explicitly pass `--capabilities CAPABILITY_IAM` to the `sam deploy` command.
-* **Save arguments to samconfig.toml**: If set to yes, your choices will be saved to a configuration file inside the project, so that in the future you can just re-run `sam deploy` without parameters to deploy changes to your application.
+Após a configuração inicial, você pode fazer deploy simplesmente com:
 
-You can find your API Gateway Endpoint URL in the output values displayed after deployment.
-
-### Testing
-
-We use `testing` package that is built-in in Golang and you can simply run the following command to run our tests:
-
-```shell
-cd ./hello-world/
-go test -v .
-```
-# Appendix
-
-### Golang installation
-
-Please ensure Go 1.x (where 'x' is the latest version) is installed as per the instructions on the official golang website: https://golang.org/doc/install
-
-A quickstart way would be to use Homebrew, chocolatey or your linux package manager.
-
-#### Homebrew (Mac)
-
-Issue the following command from the terminal:
-
-```shell
-brew install golang
+```bash
+sam deploy
 ```
 
-If it's already installed, run the following command to ensure it's the latest version:
+### 4. Monitoramento da Stack
 
-```shell
-brew update
-brew upgrade golang
+```bash
+# Verificar status da stack
+aws cloudformation describe-stacks --stack-name ct-monitor
+
+# Ver logs das funções Lambda
+sam logs -n ProducerFunction --stack-name ct-monitor --tail
+sam logs -n ConsumerFunction --stack-name ct-monitor --tail
+```
+## Configuração
+
+### Variáveis de Ambiente
+
+O projeto utiliza as seguintes variáveis de ambiente configuradas no [template.yaml](template.yaml):
+
+- `SECRET_NAME`: Nome do secret no Secrets Manager contendo a URL da fila SQS
+
+### Parâmetros Configuráveis
+
+No arquivo [samconfig.toml](samconfig.toml), você pode ajustar:
+
+- `region`: Região AWS para deploy
+- `stack_name`: Nome da stack CloudFormation
+- `s3_prefix`: Prefixo para objetos S3
+
+## API Reference
+
+### Producer Function
+
+**Endpoint**: `GET /search`
+
+**Parâmetros**:
+- `domain` (query parameter): Domínio a ser pesquisado nos CT logs
+
+**Headers**:
+- `x-api-key`: API Key requerida (obtida após deploy)
+
+**Exemplo**:
+```bash
+curl -X GET "https://{api-id}.execute-api.{region}.amazonaws.com/Prod/search?domain=example.com" \
+  -H "x-api-key: {your-api-key}"
 ```
 
-#### Chocolatey (Windows)
+## Testes
 
-Issue the following command from the powershell:
+### Testes Unitários
 
-```shell
-choco install golang
+```bash
+# Executar todos os testes
+go test ./...
+
+# Executar testes com verbosidade
+go test -v ./...
+
+# Executar testes de um pacote específico
+go test -v ./pkg/certspotter/
 ```
 
-If it's already installed, run the following command to ensure it's the latest version:
+### Teste Local das Funções
 
-```shell
-choco upgrade golang
+```bash
+# Testar função Producer localmente
+
+am local invoke ProducerFunction --event events/event.json
+
+# Testar função Consumer localmente
+sam local invoke ConsumerFunction --event events/sqs-event.json
 ```
 
-## Bringing to the next level
+## Links Úteis
 
-Here are a few ideas that you can use to get more acquainted as to how this overall process works:
-
-* Create an additional API resource (e.g. /hello/{proxy+}) and return the name requested through this new path
-* Update unit test to capture that
-* Package & Deploy
-
-Next, you can use the following resources to know more about beyond hello world samples and how others structure their Serverless applications:
-
-* [AWS Serverless Application Repository](https://aws.amazon.com/serverless/serverlessrepo/)
+- [AWS SAM Documentation](https://docs.aws.amazon.com/serverless-application-model/)
+- [LocalStack Documentation](https://docs.localstack.cloud/)
+- [Go AWS SDK v2](https://aws.github.io/aws-sdk-go-v2/)
+- [Certificate Transparency](https://certificate.transparency.dev/)
