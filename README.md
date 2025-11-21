@@ -3,6 +3,7 @@
 <img width="864" height="388" alt="Screenshot 2025-11-20 at 22 22 30" src="https://github.com/user-attachments/assets/d10ca6ee-c565-429c-9b45-ae28ec54fb51" />
 
 
+
 This is a sample template for ct-monitor - Below is a brief explanation of what we have generated for you:
 
 ```bash
